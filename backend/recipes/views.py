@@ -1,8 +1,5 @@
-from django.http import HttpResponse
 from django.shortcuts import render
-
-
-# Create your views here.
-
-def index(request):
-    return HttpResponse("Hello, world. You're at the polls index.")
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import View
+from django.http import HttpResponse
+import os
