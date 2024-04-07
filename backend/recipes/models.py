@@ -1,11 +1,5 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, User
 from django.db import models
-
-
-class Profile(AbstractUser):
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=150)
-    last_name = models.CharField(max_length=150)
 
 
 class Tag(models.Model):
@@ -25,7 +19,7 @@ class IngredientInstance(models.Model):
 
 
 class Recipe(models.Model):
-    author = models.ForeignKey(Profile, on_delete=models.DO_NOTHING)
+    author = models.ForeignKey(User, on_delete=models.DO_NOTHING)
     title = models.CharField(max_length=256)
     tags = models.ManyToManyField(Tag, related_name='recipes')
 
@@ -38,10 +32,10 @@ class RecipeInstance(models.Model):
 
 
 class Favorite(models.Model):
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
 
 
 class ShoppingCart(models.Model):
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
