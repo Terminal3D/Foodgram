@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import UserSerializer, LoginSerializer, RegistrationSerializer
+from .serializers import UserSerializer, LoginSerializer, RegistrationSerializer, ChangePasswordSerializer
 
 
 class RegistrationView(APIView):
@@ -57,7 +57,6 @@ class UserProfileView(APIView):
         return super(UserProfileView, self).get_permissions()
 
     def get_object(self, pk):
-        print(pk)
         if pk == "me":
             return self.request.user
         try:
@@ -69,3 +68,14 @@ class UserProfileView(APIView):
         user = self.get_object(pk)
         serializer = UserSerializer(user, context={'request': request})
         return Response(serializer.data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(status=204)
+        return Response(serializer.errors, status=400)

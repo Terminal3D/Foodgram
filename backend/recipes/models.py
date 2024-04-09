@@ -60,9 +60,21 @@ class ShoppingCart(models.Model):
         return self.user
 
 
+class SubscriptionManager(models.Manager):
+    def is_subscribed(self, user, author):
+        return Subscription.objects.filter(subscriber=user, author=author).exists()
+
+    def get_subscriptions(self, user):
+        return user.subscriptions.all()
+
+    def get_subscribers(self, user):
+        return user.subscribers.all()
+
+
 class Subscription(models.Model):
     subscriber = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers')
+    object = SubscriptionManager()
 
     def __str__(self):
         return self.author.__str__() + " followed by" + self.subscriber.__str__()

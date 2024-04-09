@@ -1,9 +1,11 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
 from recipes.models import Subscription
 from rest_framework.authtoken.models import Token
+
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -18,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         if request and hasattr(request, "user") and request.user.is_authenticated:
             if obj == request.user or not request.user.is_authenticated:
                 return False
-            return Subscription.objects.filter(subscriber=request.user, author=obj).exists()
+            return Subscription.objects.is_subscribed(subscriber=request.user, author=obj)
         return False
 
 
@@ -79,4 +81,34 @@ class RegistrationSerializer(serializers.Serializer):
             last_name=validated_data.get('last_name', ''),
             password=validated_data['password'],
         )
+        return user
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    new_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+    current_password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})
+
+    class Meta:
+        model = User
+        fields = ('new_password', 'current_password')
+
+    def validate_current_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Текущий пароль неверен.")
+        return value
+
+    # def validate_new_password(self, value):
+    #     validate_password(value)
+    #     return value
+
+    def validate(self, data):
+        if data['current_password'] == data['new_password']:
+            raise serializers.ValidationError("Новый пароль не должен быть таким же как и текущий.")
+        return data
+
+    def save(self, **kwargs):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save()
         return user
