@@ -7,7 +7,6 @@ from recipes.models import Subscription
 from rest_framework.authtoken.models import Token
 
 
-
 class UserSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
