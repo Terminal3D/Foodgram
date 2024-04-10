@@ -33,7 +33,7 @@ class RecipeIngredient(models.Model):
 
 class Recipe(models.Model):
     author = models.ForeignKey(User, on_delete=models.DO_NOTHING, related_name='user_recipes')
-    title = models.CharField(max_length=256)
+    name = models.CharField(max_length=256)
     tags = models.ManyToManyField(Tag, related_name='tagged_recipes', blank=True)
     ingredients = models.ManyToManyField(Ingredient, through=RecipeIngredient, related_name='recipes')
     description = models.TextField(default='', blank=True)
@@ -41,7 +41,7 @@ class Recipe(models.Model):
     cooking_time = models.IntegerField(default=0)
 
     def __str__(self):
-        return self.title
+        return self.name
 
 
 class Favorite(models.Model):
@@ -74,7 +74,7 @@ class SubscriptionManager(models.Manager):
 class Subscription(models.Model):
     subscriber = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers')
-    object = SubscriptionManager()
+    objects = SubscriptionManager()
 
     def __str__(self):
         return self.author.__str__() + " followed by" + self.subscriber.__str__()
