@@ -7,6 +7,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.authtoken.models import Token
+from rest_framework.exceptions import PermissionDenied
 
 from recipes.models import Subscriptions, Tag, Recipe, Ingredient, RecipeIngredient, Favorites, ShoppingCart
 
@@ -58,8 +59,8 @@ class LoginSerializer(serializers.Serializer):
 
 class RegistrationSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(required=True)
-    first_name = serializers.CharField(required=True)
-    last_name = serializers.CharField(required=True)
+    first_name = serializers.CharField(required=True, max_length=150)
+    last_name = serializers.CharField(required=True, max_length=150)
 
     class Meta:
         model = User
@@ -119,6 +120,11 @@ class IngredientSerializer(serializers.ModelSerializer):
 class ShoppingCartAndFavoritesSerializer(serializers.ModelSerializer):
     image = Base64ImageField()
 
+    def validate_image(self, value):
+        if not value:
+            raise serializers.ValidationError("Поле image не может быть пустым.")
+        return value
+
     class Meta:
         model = Recipe
         fields = ['id', 'name', 'image', 'cooking_time']
@@ -144,7 +150,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
     measurement_unit = serializers.ReadOnlyField(source='ingredient.measurement_unit')
-    amount = serializers.DecimalField(max_digits=6, decimal_places=1, validators=[MinValueValidator(0)])
+    amount = serializers.IntegerField(min_value=0)
 
     class Meta:
         model = RecipeIngredient
@@ -153,8 +159,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 class CreateRecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.PrimaryKeyRelatedField(queryset=Ingredient.objects.all())
-    amount = serializers.DecimalField(max_digits=6, decimal_places=1,
-                                      validators=[MinValueValidator(0), MaxValueValidator(100000)])
+    amount = serializers.IntegerField(min_value=1, max_value=100000)
 
     class Meta:
         model = RecipeIngredient
@@ -189,6 +194,9 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
     image = Base64ImageField()
     ingredients = CreateRecipeIngredientSerializer(many=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
+    name = serializers.CharField(max_length=200)
+    text = serializers.CharField(allow_null=False)
+    cooking_time = serializers.IntegerField(allow_null=False, min_value=1)
 
     class Meta:
         model = Recipe
@@ -199,7 +207,7 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
         cooking_time = data.get('cooking_time')
         tags = data.get('tags')
 
-        if len(tags) == 0:
+        if not tags or len(tags) == 0:
             raise serializers.ValidationError("Рецепт должен содержать хотя бы один тег.")
 
         if len(tags) != len(set(tags)):
@@ -209,13 +217,21 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
             if not Tag.objects.filter(id=tag.id).exists():
                 raise serializers.ValidationError(f"Тег с ID {tag.id} не был найден.")
 
-        if int(cooking_time) < 0:
-            raise serializers.ValidationError("Время готовки не должно быть отрицательным")
-
         if not isinstance(ingredients_data, list):
             raise serializers.ValidationError("Не был получен список ингредиентов.")
 
+        if not ingredients_data or len(ingredients_data) == 0:
+            raise serializers.ValidationError("Рецепт должен содержать хотя бы один ингредиент.")
+
+        if len(ingredients_data) != len(set(tuple(ingredient.items()) for ingredient in ingredients_data)):
+            raise serializers.ValidationError("Ингредиенты должны быть уникальными.")
+
         return data
+
+    def validate_image(self, value):
+        if not value:
+            raise serializers.ValidationError("Поле image не может быть пустым.")
+        return value
 
     def create(self, validated_data):
 
@@ -233,6 +249,10 @@ class CreateRecipeSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
+        current_user = self.context['request'].user
+        if instance.author != current_user:
+            raise PermissionDenied("Вы не можете редактировать эту запись.")
+
         instance.name = validated_data.get('name', instance.name)
         instance.text = validated_data.get('text', instance.text)
         instance.cooking_time = validated_data.get('cooking_time', instance.cooking_time)

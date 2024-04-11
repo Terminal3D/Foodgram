@@ -22,7 +22,7 @@ class Ingredient(models.Model):
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey('Recipe', on_delete=models.CASCADE, related_name='recipe_ingredients')
     ingredient = models.ForeignKey('Ingredient', on_delete=models.CASCADE, related_name='ingredient_recipes')
-    amount = models.DecimalField(max_digits=6, decimal_places=1)
+    amount = models.IntegerField()
 
     def __str__(self):
         return "Recipe: " + self.recipe.__str__() + " Ingredient: " + self.ingredient.__str__()

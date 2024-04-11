@@ -12,10 +12,10 @@ urlpatterns = [
     path('tags/', views.TagsListAPI.as_view(), name='tags_list'),
     path('tags/<int:pk>/', views.TagAPIView.as_view(), name='tag_by_id'),
     path('ingredients/', views.IngredientsListAPI.as_view(), name='ingredients_list'),
-    path('ingredients/<int:pk>', views.IngredientAPIView.as_view(), name='ingredient_by_id'),
+    path('ingredients/<int:pk>/', views.IngredientAPIView.as_view(), name='ingredient_by_id'),
     path('recipes/', views.RecipeDispatcherAPIView.as_view(), name='recipe_list'),
     path('recipes/download_shopping_cart/', views.DownloadShoppingCartAPIView.as_view(), name='download_shopping_cart'),
-    path('recipes/<int:pk>/', views.RecipeAPIView.as_view(), name='recipe_by_id'),
+    path('recipes/<int:pk>/', views.RecipeByIDDispatcherAPIView.as_view(), name='recipe_by_id'),
     path('recipes/<int:pk>/shopping_cart/', views.ShoppingCartAPIView.as_view(), name='add_to_shopping_cart'),
     path('recipes/<int:pk>/favorite/', views.FavoriteAPIView.as_view(), name='add_to_favorite'),
 

@@ -117,9 +117,16 @@ class TagAPIView(generics.RetrieveAPIView):
 
 
 class IngredientsListAPI(generics.ListAPIView):
-    queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
+
+    def get_queryset(self):
+        name = self.request.query_params.get('name')
+        if name:
+            queryset = Ingredient.objects.filter(name__startswith=name)
+            return queryset
+        else:
+            return Ingredient.objects.all()
 
 
 class IngredientAPIView(generics.RetrieveAPIView):
@@ -150,7 +157,7 @@ class ShoppingCartAPIView(APIView):
         try:
             recipe = Recipe.objects.get(pk=recipe_id)
         except Recipe.DoesNotExist:
-            return Response({'error': 'Рецепт не найден.'}, status=404)
+            return Response({'error': 'Рецепт не найден.'}, status=400)
 
         shopping_cart, created = ShoppingCart.objects.get_or_create(user=user)
 
@@ -175,7 +182,7 @@ class ShoppingCartAPIView(APIView):
             shopping_cart.recipes.remove(recipe)
             return Response({'success': 'Рецепт удален из корзины покупок.'}, status=204)
         else:
-            return Response({'error': 'Рецепт не найден в корзине покупок.'}, status=404)
+            return Response({'error': 'Рецепт не найден в корзине покупок.'}, status=400)
 
 
 class DownloadShoppingCartAPIView(APIView):
@@ -187,10 +194,11 @@ class DownloadShoppingCartAPIView(APIView):
         if shopping_cart.recipes.count() == 0:
             return Response({'error': 'Ваша корзина пуста.'}, status=200)
 
-        ingredients_summary = defaultdict(float)
+        ingredients_summary = defaultdict(int)
         for recipe in shopping_cart.recipes.all():
             for ingredient in RecipeIngredient.objects.filter(recipe=recipe):
-                ingredients_summary[f'{ingredient.ingredient.name} ({ingredient.ingredient.measurement_unit})'] += float(
+                ingredients_summary[
+                    f'{ingredient.ingredient.name} ({ingredient.ingredient.measurement_unit})'] += int(
                     ingredient.amount)
 
         shopping_list = "\r\n".join([f"{name} — {amount}" for name, amount in ingredients_summary.items()])
@@ -211,7 +219,7 @@ class FavoriteAPIView(APIView):
         try:
             recipe = Recipe.objects.get(pk=recipe_id)
         except Recipe.DoesNotExist:
-            return Response({'error': 'Рецепт не найден.'}, status=404)
+            return Response({'error': 'Рецепт не найден.'}, status=400)
 
         favorites, created = Favorites.objects.get_or_create(user=user)
 
@@ -236,7 +244,7 @@ class FavoriteAPIView(APIView):
             favorites.recipes.remove(recipe)
             return Response({'success': 'Рецепт удален из корзины покупок.'}, status=204)
         else:
-            return Response({'error': 'Рецепт не найден в корзине покупок.'}, status=404)
+            return Response({'error': 'Рецепт не найден в корзине покупок.'}, status=400)
 
 
 class SubscriptionsListAPIView(generics.ListAPIView):
@@ -258,8 +266,11 @@ class SubscriptionsAPIView(APIView):
 
         try:
             author = User.objects.get(pk=author_id)
-        except Recipe.DoesNotExist:
+        except User.DoesNotExist:
             return Response({'error': 'Пользователь не найден.'}, status=404)
+
+        if author == user:
+            return Response({'error': 'Нельзя подписаться на самого себя.'}, status=400)
 
         subscription, created = Subscriptions.objects.get_or_create(user=user)
 
@@ -277,14 +288,14 @@ class SubscriptionsAPIView(APIView):
         try:
             author = User.objects.get(pk=author_id)
             subscription = Subscriptions.objects.get(user=user)
-        except (Recipe.DoesNotExist, Subscriptions.DoesNotExist):
+        except (User.DoesNotExist, Subscriptions.DoesNotExist):
             return Response({'error': 'Пользователь или подписка не найдены.'}, status=404)
 
         if subscription.subscription.filter(pk=author_id).exists():
             subscription.subscription.remove(author)
             return Response({'success': 'Успешно отписались от пользователя..'}, status=204)
         else:
-            return Response({'error': 'Вы не подписаны на данного пользователя.'}, status=404)
+            return Response({'error': 'Вы не подписаны на данного пользователя.'}, status=400)
 
 
 class RecipeListAPIView(generics.ListAPIView):
@@ -317,10 +328,46 @@ class RecipeListAPIView(generics.ListAPIView):
         return queryset
 
 
-class RecipeAPIView(generics.RetrieveUpdateDestroyAPIView):
+class RecipeByIDDispatcherAPIView(APIView):
+
+    def get(self, request, *args, **kwargs):
+        view = RecipeRetrieveAPIView.as_view()
+        django_request = request._request
+        return view(django_request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        view = RecipeUpdateAndDestroyAPIView.as_view()
+        django_request = request._request
+        return view(django_request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        view = RecipeUpdateAndDestroyAPIView.as_view()
+        django_request = request._request
+        return view(django_request, *args, **kwargs)
+
+
+class RecipeRetrieveAPIView(generics.RetrieveAPIView):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     pagination_class = UsersAndRecipeListAPIPagination
+
+
+class RecipeUpdateAndDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Recipe.objects.all()
+    permission_classes = [IsAuthenticated]
+    serializer_class = CreateRecipeSerializer
+    pagination_class = UsersAndRecipeListAPIPagination
+
+    def delete(self, request, *args, **kwargs):
+        pk = kwargs.get('pk')
+        try:
+            recipe = Recipe.objects.get(pk=pk)
+        except Recipe.DoesNotExist:
+            return Response({'error': 'Рецепт не найден.'}, status=404)
+        if recipe.author != request.user:
+            return Response({'error': 'Вы не являетесь автором данного рецепта.'}, status=403)
+        return super().delete(request, *args, **kwargs)
+
 
 
 class CreateRecipeAPIView(generics.CreateAPIView):
