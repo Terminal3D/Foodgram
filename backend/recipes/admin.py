@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Tag, Ingredient, Recipe, Favorites, ShoppingCart, Subscription, RecipeIngredient
+from .models import Tag, Ingredient, Recipe, Favorites, ShoppingCart, Subscriptions, RecipeIngredient
 
 
 class RecipeIngredientInline(admin.TabularInline):
@@ -11,7 +11,7 @@ class RecipeIngredientInline(admin.TabularInline):
 class RecipeAdmin(admin.ModelAdmin):
     inlines = [RecipeIngredientInline, ]
     list_display = ('name', 'author', 'cooking_time')
-    search_fields = ['name', 'description', 'author__username']
+    search_fields = ['name', 'text', 'author__username']
     list_filter = ('tags', 'author')
 
 
@@ -49,7 +49,12 @@ class ShoppingCartAdmin(admin.ModelAdmin):
     list_recipes.short_description = 'Recipes'
 
 
-@admin.register(Subscription)
+@admin.register(Subscriptions)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('subscriber', 'author')
-    search_fields = ['subscriber__username', 'author__username']
+    list_display = ('user', 'list_subscriptions')
+    search_fields = ['user__username', 'subscription__username']
+
+    def list_subscriptions(self, obj):
+        return ", ".join([user.username for user in obj.subscription.all()])
+
+    list_subscriptions.short_description = 'Subscriptions'

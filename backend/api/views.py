@@ -187,10 +187,10 @@ class DownloadShoppingCartAPIView(APIView):
         if shopping_cart.recipes.count() == 0:
             return Response({'error': 'Ваша корзина пуста.'}, status=200)
 
-        ingredients_summary = defaultdict(int)
+        ingredients_summary = defaultdict(float)
         for recipe in shopping_cart.recipes.all():
             for ingredient in RecipeIngredient.objects.filter(recipe=recipe):
-                ingredients_summary[f'{ingredient.ingredient.name} ({ingredient.ingredient.measurement_unit})'] += int(
+                ingredients_summary[f'{ingredient.ingredient.name} ({ingredient.ingredient.measurement_unit})'] += float(
                     ingredient.amount)
 
         shopping_list = "\r\n".join([f"{name} — {amount}" for name, amount in ingredients_summary.items()])
@@ -239,19 +239,52 @@ class FavoriteAPIView(APIView):
             return Response({'error': 'Рецепт не найден в корзине покупок.'}, status=404)
 
 
-class SubscriptionsListAPIView(APIView):
+class SubscriptionsListAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = SubscriptionSerializer
+    pagination_class = UsersAndRecipeListAPIPagination
 
-    def get(self, request, *args, **kwargs):
-        user_subscriptions = Subscription.objects.filter(subscriber=request.user).values_list('author', flat=True)
-        authors = User.objects.filter(id__in=user_subscriptions)
+    def get_queryset(self):
+        queryset = Subscriptions.objects.get_subscriptions(user=self.request.user)
+        return queryset
 
-        paginator = UsersAndRecipeListAPIPagination()
-        result_page = paginator.paginate_queryset(authors, request)
-        serializer = self.serializer_class(result_page, many=True, context={'request': request})
 
-        return paginator.get_paginated_response(serializer.data)
+class SubscriptionsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        author_id = kwargs.get('pk')
+        user = request.user
+
+        try:
+            author = User.objects.get(pk=author_id)
+        except Recipe.DoesNotExist:
+            return Response({'error': 'Пользователь не найден.'}, status=404)
+
+        subscription, created = Subscriptions.objects.get_or_create(user=user)
+
+        if not subscription.subscription.filter(pk=author_id).exists():
+            subscription.subscription.add(author)
+            serializer = SubscriptionSerializer(author, context={'request': request})
+            return Response(serializer.data, status=201)
+        else:
+            return Response({'error': 'Вы уже подписаны на этого пользователя.'}, status=400)
+
+    def delete(self, request, *args, **kwargs):
+        author_id = kwargs.get('pk')
+        user = request.user
+
+        try:
+            author = User.objects.get(pk=author_id)
+            subscription = Subscriptions.objects.get(user=user)
+        except (Recipe.DoesNotExist, Subscriptions.DoesNotExist):
+            return Response({'error': 'Пользователь или подписка не найдены.'}, status=404)
+
+        if subscription.subscription.filter(pk=author_id).exists():
+            subscription.subscription.remove(author)
+            return Response({'success': 'Успешно отписались от пользователя..'}, status=204)
+        else:
+            return Response({'error': 'Вы не подписаны на данного пользователя.'}, status=404)
 
 
 class RecipeListAPIView(generics.ListAPIView):
@@ -259,8 +292,7 @@ class RecipeListAPIView(generics.ListAPIView):
     pagination_class = UsersAndRecipeListAPIPagination
 
     def get_queryset(self):
-        queryset = Recipe.objects.all()
-
+        queryset = Recipe.objects.all().order_by('-id')
         is_favorited = self.request.query_params.get('is_favorited')
         is_in_shopping_cart = self.request.query_params.get('is_in_shopping_cart')
         author_id = self.request.query_params.get('author')
@@ -285,17 +317,13 @@ class RecipeListAPIView(generics.ListAPIView):
         return queryset
 
 
-class RecipeAPIView(generics.RetrieveAPIView):
+class RecipeAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
+    pagination_class = UsersAndRecipeListAPIPagination
 
 
-class CreateRecipeAPIView(APIView):
+class CreateRecipeAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        request.data['author'] = self.request.user.id
-        serializer = CreateRecipeSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=201)
+    serializer_class = CreateRecipeSerializer
+    pagination_class = UsersAndRecipeListAPIPagination

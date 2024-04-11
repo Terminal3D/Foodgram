@@ -22,7 +22,7 @@ class Ingredient(models.Model):
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey('Recipe', on_delete=models.CASCADE, related_name='recipe_ingredients')
     ingredient = models.ForeignKey('Ingredient', on_delete=models.CASCADE, related_name='ingredient_recipes')
-    amount = models.CharField(max_length=100)
+    amount = models.DecimalField(max_digits=6, decimal_places=1)
 
     def __str__(self):
         return "Recipe: " + self.recipe.__str__() + " Ingredient: " + self.ingredient.__str__()
@@ -36,7 +36,7 @@ class Recipe(models.Model):
     name = models.CharField(max_length=256)
     tags = models.ManyToManyField(Tag, related_name='tagged_recipes', blank=True)
     ingredients = models.ManyToManyField(Ingredient, through=RecipeIngredient, related_name='recipes')
-    description = models.TextField(default='', blank=True)
+    text = models.TextField(default='', blank=True)
     image = models.ImageField(upload_to='recipe_images', default='recipe_images/default.jpg')
     cooking_time = models.IntegerField(default=0)
 
@@ -62,17 +62,23 @@ class ShoppingCart(models.Model):
 
 class SubscriptionManager(models.Manager):
     def is_subscribed(self, user, author):
-        return Subscription.objects.filter(subscriber=user, author=author).exists()
+        try:
+            subscriptions = Subscriptions.objects.get(user=user)
+            return subscriptions.subscription.filter(id=author.id).exists()
+        except Subscriptions.DoesNotExist:
+            return False
 
     def get_subscriptions(self, user):
-        return Subscription.objects.filter(subscriber=user)
+        try:
+            return Subscriptions.objects.get(user=user).subscription.all()
+        except Subscriptions.DoesNotExist:
+            return []
 
 
-
-class Subscription(models.Model):
-    subscriber = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers')
+class Subscriptions(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
+    subscription = models.ManyToManyField(User, related_name='following')
     objects = SubscriptionManager()
 
     def __str__(self):
-        return self.subscriber.__str__() + " followed by" + self.author.__str__()
+        return self.user.username
