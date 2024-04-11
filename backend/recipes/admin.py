@@ -10,10 +10,17 @@ class RecipeIngredientInline(admin.TabularInline):
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     inlines = [RecipeIngredientInline, ]
-    list_display = ('name', 'author', 'cooking_time')
+    list_display = ('name', 'author_name', 'cooking_time', 'favorites_count')
     search_fields = ['name', 'text', 'author__username']
     list_filter = ('tags', 'author')
 
+    def author_name(self, obj):
+        return obj.author.first_name + ' ' + obj.author.last_name
+    author_name.short_description = 'Имя и фамилия автора'
+
+    def favorites_count(self, obj):
+        return Favorites.objects.filter(recipes=obj).count()
+    favorites_count.short_description = 'Добавлений в избранное'
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
