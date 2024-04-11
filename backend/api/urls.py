@@ -6,6 +6,7 @@ urlpatterns = [
     path('auth/token/logout/', views.LogoutAPIView.as_view(), name='logout'),
     path('users/', views.UsersDispatcherAPIView.as_view(), name='users_dispatcher'),
     path('users/set_password/', views.ChangePasswordAPIView.as_view(), name='change_password'),
+    path('users/subscriptions/', views.SubscriptionsListAPIView.as_view(), name='subscriptions_list'),
     path('users/<str:pk>/', views.UserProfileAPIView.as_view(), name='user_profile'),
     path('tags/', views.TagsListAPI.as_view(), name='tags_list'),
     path('tags/<int:pk>/', views.TagAPIView.as_view(), name='tag_by_id'),

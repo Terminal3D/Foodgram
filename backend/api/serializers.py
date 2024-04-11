@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
-from recipes.models import Subscription, Tag, Recipe, Ingredient, RecipeIngredient, Favorite, ShoppingCart
+from recipes.models import Subscription, Tag, Recipe, Ingredient, RecipeIngredient, Favorites, ShoppingCart
 from rest_framework.authtoken.models import Token
 
 
@@ -21,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
         if request and hasattr(request, "user") and request.user.is_authenticated:
             if obj == request.user:
                 return False
-            return Subscription.objects.is_subscribed(subscriber=request.user, author=obj)
+            return Subscription.objects.is_subscribed(user=request.user, author=obj)
         return False
 
 
@@ -70,6 +70,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         ShoppingCart.objects.create(user=user)
+        Favorites.objects.create(user=user)
         return user
 
 
@@ -135,6 +136,23 @@ class ShoppingCartAndFavoritesSerializer(serializers.ModelSerializer):
         return None
 
 
+class SubscriptionSerializer(UserSerializer):
+    recipes = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ['is_subscribed', 'recipes', 'recipes_count']
+
+    def get_recipes(self, obj):
+        recipes_limit = self.context.get('request').query_params.get('recipes_limit', None)
+        recipes = Recipe.objects.filter(author=obj)[:int(recipes_limit) if recipes_limit else None]
+        return ShoppingCartAndFavoritesSerializer(recipes, many=True, context=self.context).data
+
+    def get_recipes_count(self, obj):
+        return Recipe.objects.filter(author=obj).count()
+
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     tags = TagSerializer(many=True, read_only=True)
@@ -149,7 +167,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     def get_is_favorited(self, obj):
         user = self.context.get('request').user
         if user and not user.is_anonymous:
-            return Favorite.objects.filter(user=user, recipe=obj).exists()
+            return Favorites.objects.filter(user=user, recipes=obj).exists()
         return False
 
     def get_is_in_shopping_cart(self, obj):

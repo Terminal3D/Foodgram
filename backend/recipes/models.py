@@ -44,12 +44,12 @@ class Recipe(models.Model):
         return self.name
 
 
-class Favorite(models.Model):
+class Favorites(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorites')
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='favorite_by')
+    recipes = models.ManyToManyField(Recipe, related_name='favorite_by')
 
     def __str__(self):
-        return self.recipe.__str__() + " by " + self.user.__str__()
+        return self.user.username
 
 
 class ShoppingCart(models.Model):
@@ -57,7 +57,7 @@ class ShoppingCart(models.Model):
     recipes = models.ManyToManyField(Recipe, related_name='in_shopping_carts')
 
     def __str__(self):
-        return self.user
+        return self.user.username
 
 
 class SubscriptionManager(models.Manager):
@@ -65,10 +65,8 @@ class SubscriptionManager(models.Manager):
         return Subscription.objects.filter(subscriber=user, author=author).exists()
 
     def get_subscriptions(self, user):
-        return user.subscriptions.all()
+        return Subscription.objects.filter(subscriber=user)
 
-    def get_subscribers(self, user):
-        return user.subscribers.all()
 
 
 class Subscription(models.Model):
@@ -77,4 +75,4 @@ class Subscription(models.Model):
     objects = SubscriptionManager()
 
     def __str__(self):
-        return self.author.__str__() + " followed by" + self.subscriber.__str__()
+        return self.subscriber.__str__() + " followed by" + self.author.__str__()
