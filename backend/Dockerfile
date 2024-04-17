@@ -1,12 +1,17 @@
-# Используем официальный образ Python в качестве базового образа
 FROM python
-# Устанавливаем рабочую директорию внутри контейнера
-WORKDIR /usr/src/app
-RUN mkdir -p $WORKDIR/static
-RUN mkdir -p $WORKDIR/media
-# Копируем файл requirements.txt внутрь контейнера
+
+WORKDIR /app
+
+# set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+RUN pip install --upgrade pip
+
 COPY requirements.txt ./
-# Устанавливаем зависимости, описанные в файле requirements.txt
+
 RUN pip install -r requirements.txt
 
 COPY . .
+COPY ./entrypoint.sh /
+ENTRYPOINT ["sh", "/entrypoint.sh"]

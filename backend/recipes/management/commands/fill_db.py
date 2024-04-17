@@ -12,7 +12,7 @@ class Command(BaseCommand):
         self.create_tags()
 
     def load_ingredients(self):
-        path = BASE_DIR.parent.joinpath('data', 'ingredients.json')
+        path = BASE_DIR.joinpath('data', 'ingredients.json')
 
         with open(path, 'r', encoding='utf8') as file:
             data = json.load(file)
