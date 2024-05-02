@@ -90,25 +90,11 @@ class ShoppingCart(models.Model):
         return self.user.username
 
 
-class SubscriptionManager(models.Manager):
-    def is_subscribed(self, user, author):
-        try:
-            subscriptions = Subscriptions.objects.get(user=user)
-            return subscriptions.subscription.filter(id=author.id).exists()
-        except Subscriptions.DoesNotExist:
-            return False
-
-    def get_subscriptions(self, user):
-        try:
-            return Subscriptions.objects.get(user=user).subscription.all()
-        except Subscriptions.DoesNotExist:
-            return []
 
 
-class Subscriptions(models.Model):
+class Subscription(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions', verbose_name='Пользователь')
     subscription = models.ManyToManyField(User, related_name='following', verbose_name='Подписка')
-    objects = SubscriptionManager()
     class Meta:
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
