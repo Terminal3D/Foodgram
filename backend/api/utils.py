@@ -28,10 +28,10 @@ class RecipeManager:
             collection.recipes.add(recipe)
             serializer = serializer_class(recipe, context={'request': request})
             return Response(serializer.data, status=http.HTTPStatus.CREATED)
-        else:
-            return Response(
-                {'error': 'Рецепт уже добавлен в избранное/корзину.'},
-                status=http.HTTPStatus.BAD_REQUEST)
+
+        return Response(
+            {'error': 'Рецепт уже добавлен в избранное/корзину.'},
+            status=http.HTTPStatus.BAD_REQUEST)
 
     @staticmethod
     def remove_recipe_from_collection(user, recipe_id, collection_model):
@@ -44,7 +44,7 @@ class RecipeManager:
             return Response(
                 {'success': 'Рецепт удалён из избранного/корзины.'},
                 status=http.HTTPStatus.NO_CONTENT)
-        else:
-            return Response(
-                {'error': 'Рецепт не найден в избранном/корзине.'},
-                status=http.HTTPStatus.BAD_REQUEST)
+
+        return Response(
+            {'error': 'Рецепт не найден в избранном/корзине.'},
+            status=http.HTTPStatus.BAD_REQUEST)
